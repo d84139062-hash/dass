@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年齡與憂鬱、焦慮、壓力的關係 - DASS-21 統計分析</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font: Inter & Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* 自訂圖表區域與過渡效果 */
+        .tab-btn.active {
+            background-color: #ffffff;
+            color: #2563eb;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            border-bottom: 2px solid #2563eb;
+        }
+        /* 自訂 Checkbox / Radio 樣式 */
+        .custom-checkbox:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+    <!-- 頂部標頭區域 -->
+    <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg border-b border-indigo-900/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-3 mb-2">
+                        <span class="px-2.5 py-1 text-xs font-semibold tracking-wide uppercase bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-400/30">
+                            DASS-21 統計數據分析
+                        </span>
+                        <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i>2026 最新更新樣本</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">年齡與憂鬱、焦慮、壓力的關係</h1>
+                </div>
+                <!-- 樣本組切換控制項 -->
+                <div class="bg-slate-800/80 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 flex items-center shadow-inner">
+                    <span class="text-xs text-slate-400 px-3 font-medium flex items-center">
+                        <i class="fa-solid fa-users text-indigo-400 mr-2"></i>樣本分析群組:
+                    </span>
+                    <select id="sampleSelect" class="bg-slate-900 text-slate-200 text-sm font-medium rounded-lg px-3 py-1.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition">
+                        <option value="all">全體有效樣本 (n=1,250)</option>
+                        <option value="male">男性子樣本 (n=580)</option>
+                        <option value="female">女性子樣本 (n=670)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 說明區塊 -->
+            <div class="mt-6 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-slate-300 text-sm leading-relaxed backdrop-blur-sm">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-circle-info text-indigo-400 text-base mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <strong class="text-indigo-200 font-semibold">DASS-21 量表簡介與分數計算：</strong>
+                        本統計採用「簡式抑鬱-焦慮-壓力量表 (DASS-21)」，包含情緒狀態的三個分量表（各 7 題）。每題依據過去一週體驗程度評分（0–3分）。計算方式為：將各分量表的 7 題原始得分加總後<span class="text-amber-300 font-semibold">乘以 2</span>，轉換為相當於 42 題全版 DASS 的換算分，因此各分量表總分範圍皆為 <span class="bg-indigo-900/60 px-2 py-0.5 rounded text-indigo-200 font-mono font-medium">0–42 分</span>。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+
+        <!-- 控制儀表板 (圖表類型切換 & 分量表選擇) -->
+        <div class="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            
+            <!-- 左側：圖表模式切換 Tabs -->
+            <div class="flex bg-slate-100 p-1.5 rounded-xl text-slate-600 font-medium text-sm">
+                <button id="tabBtnLine" class="tab-btn active flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 text-slate-700">
+                    <i class="fa-solid fa-chart-line text-blue-600"></i>
+                    <span>年齡對各分量的平均數 (折線圖)</span>
+                </button>
+                <button id="tabBtnBar" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-chart-bar text-purple-600"></i>
+                    <span>各年齡層嚴重度分布 (堆疊長條圖)</span>
+                </button>
+            </div>
+
+            <!-- 右側：動態切換分量表選擇器 -->
+            <div class="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-filter text-slate-400"></i>
+                    <span id="subscaleSelectLabel">分量表選擇：</span>
+                </span>
+
+                <!-- 折線圖專用：複選 Checkboxes (限制至少留一個) -->
+                <div id="checkboxGroup" class="flex items-center gap-3 text-sm font-medium">
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition">
+                        <input type="checkbox" value="depression" class="subscale-checkbox rounded text-blue-600 focus:ring-blue-500 w-4 h-4" checked>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                        <span class="text-slate-700">憂鬱 (Depression)</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition">
+                        <input type="checkbox" value="anxiety" class="subscale-checkbox rounded text-amber-500 focus:ring-amber-400 w-4 h-4" checked>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="text-slate-700">焦慮 (Anxiety)</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition">
+                        <input type="checkbox" value="stress" class="subscale-checkbox rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" checked>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                        <span class="text-slate-700">壓力 (Stress)</span>
+                    </label>
+                </div>
+
+                <!-- 堆疊圖專用：單選 Radio Group (預設隱藏) -->
+                <div id="radioGroup" class="hidden flex items-center gap-3 text-sm font-medium">
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="subscaleRadio" value="depression" class="text-blue-600 focus:ring-blue-500 w-4 h-4" checked>
+                        <span class="text-slate-700">憂鬱</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="subscaleRadio" value="anxiety" class="text-amber-500 focus:ring-amber-400 w-4 h-4">
+                        <span class="text-slate-700">焦慮</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="subscaleRadio" value="stress" class="text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+                        <span class="text-slate-700">壓力</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表展示卡片區塊 -->
+        <div class="bg-white rounded-2xl p-5 sm:p-7 shadow-sm border border-slate-200/80 transition-all duration-300">
+            
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <div>
+                    <h2 id="chartTitle" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-blue-600"></i>
+                        <span>各年齡組平均分數與 95% 信賴區間 (CI)</span>
+                    </h2>
+                    <p id="chartSubtitle" class="text-xs text-slate-500 mt-1">
+                        縱軸得分範圍固定為 0–42 分；誤差線代表 95% 信賴區間估計值。
+                    </p>
+                </div>
+                <!-- 數據提示標籤 -->
+                <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <i class="fa-regular fa-lightbulb text-amber-500"></i>
+                    <span>提示：將游標移至圖表節點可檢視精確數值與統計指標</span>
+                </div>
+            </div>
+
+            <!-- Canvas 繪圖區 -->
+            <div class="relative w-full h-[380px] sm:h-[450px]">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 統計數據表格區塊 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="p-5 sm:p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-table-list text-indigo-600"></i>
+                        <span>年齡分組詳細統計與嚴重度分布數據</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">根據選擇的樣本群組與分量表動態更新數據表格</p>
+                </div>
+                <div id="tableActiveSubscaleBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    目前檢視分量表：全覽
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-100/80 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                            <th scope="col" class="py-3.5 px-4 sm:px-6">年齡組別</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">樣本數 (n)</th>
+                            <th scope="col" class="py-3.5 px-4 bg-slate-200/50 text-indigo-900 font-bold">分量表</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">平均數 (Mean)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">標準差 (SD)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">95% CI</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">正常 (%)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">輕度 (%)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">中度 (%)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">重度 (%)</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">極重度 (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statTableBody" class="divide-y divide-slate-200/70 font-mono text-xs sm:text-sm">
+                        <!-- 由 JavaScript 動態繪製與填入 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 專業註解與說明區塊 -->
+        <div class="bg-slate-900 text-slate-300 rounded-2xl p-6 sm:p-8 shadow-md border border-slate-800 space-y-6">
+            <h4 class="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                <i class="fa-solid fa-book-bookmark text-amber-400"></i>
+                <span>統計數值解釋與 DASS-21 切點標準註解</span>
+            </h4>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs sm:text-sm leading-relaxed">
+                <!-- 統計指標解釋 -->
+                <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                    <h5 class="font-semibold text-amber-300 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-calculator"></i> 統計量說明
+                    </h5>
+                    <ul class="space-y-1.5 text-slate-300 list-disc list-inside">
+                        <li><strong class="text-white">Mean (平均數):</strong> 該年齡組在分量表上的總分平均估計值。</li>
+                        <li><strong class="text-white">SD (標準差):</strong> 反映組內個體得分偏離平均數的離散程度。</li>
+                        <li><strong class="text-white">95% CI (信賴區間):</strong> 以 95% 的信心程度涵蓋母體真實平均數的區間範疇，區間越窄代表估計精準度越高。</li>
+                    </ul>
+                </div>
+
+                <!-- DASS-21 切點分級標準 -->
+                <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                    <h5 class="font-semibold text-indigo-300 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group"></i> 嚴重度切點 (Cut-off Scores)
+                    </h5>
+                    <div class="text-xs space-y-1 text-slate-300">
+                        <p><span class="text-blue-400 font-medium">憂鬱：</span>正常(0-9) | 輕度(10-13) | 中度(14-20) | 重度(21-27) | 極重度(28+)</p>
+                        <p><span class="text-amber-400 font-medium">焦慮：</span>正常(0-7) | 輕度(8-9) | 中度(10-14) | 重度(15-19) | 極重度(20+)</p>
+                        <p><span class="text-emerald-400 font-medium">壓力：</span>正常(0-14) | 輕度(15-18) | 中度(19-25) | 重度(26-33) | 極重度(34+)</p>
+                    </div>
+                </div>
+
+                <!-- 臨床警示注意事項 -->
+                <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                    <h5 class="font-semibold text-rose-300 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> 注意事項與使用限制
+                    </h5>
+                    <p class="text-xs text-slate-300 leading-normal">
+                        DASS-21 為自填式情緒健康評估工具，主要用於研究調查與社區健康篩檢。本統計圖表呈現之結果僅反映情緒強度與症狀嚴重度分布，<strong class="text-rose-200">不可直接作為精神疾病（如重度憂鬱症、廣泛性焦慮症）之臨床診斷依據</strong>。若發現得分持續偏高，建議尋求精神科醫師或臨床心理師之專業評估。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Chart.js 誤差線繪製外掛程式與邏輯 -->
+    <script>
+        // 自訂 Chart.js 誤差線外掛 Plugin
+        const errorBarsPlugin = {
+            id: 'errorBars',
+            afterDatasetsDraw(chart, args, options) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (meta.hidden || !dataset.errorBars) return;
+
+                    ctx.save();
+                    ctx.lineWidth = dataset.borderWidth || 2;
+                    ctx.strokeStyle = dataset.borderColor || '#333';
+
+                    meta.data.forEach((element, index) => {
+                        const errorBar = dataset.errorBars[index];
+                        if (!errorBar) return;
+
+                        const x = element.x;
+                        const yMin = chart.scales.y.getPixelForValue(errorBar.min);
+                        const yMax = chart.scales.y.getPixelForValue(errorBar.max);
+                        const capWidth = 6; // 誤差線帽端寬度
+
+                        // 繪製垂直主線
+                        ctx.beginPath();
+                        ctx.moveTo(x, yMin);
+                        ctx.lineTo(x, yMax);
+                        ctx.stroke();
+
+                        // 繪製頂部帽端 (yMax)
+                        ctx.beginPath();
+                        ctx.moveTo(x - capWidth, yMax);
+                        ctx.lineTo(x + capWidth, yMax);
+                        ctx.stroke();
+
+                        // 繪製底部帽端 (yMin)
+                        ctx.beginPath();
+                        ctx.moveTo(x - capWidth, yMin);
+                        ctx.lineTo(x + capWidth, yMin);
+                        ctx.stroke();
+                    });
+                    ctx.restore();
+                });
+            }
+        };
+
+        // 註冊外掛
+        Chart.register(errorBarsPlugin);
+
+        // 資料庫定義 (全體數據、男性、女性子樣本)
+        const sampleDatasets = {
+            all: {
+                name: "全體有效樣本 (n=1,250)",
+                groups: [
+                    { ageGroup: "10–19", n: 185 },
+                    { ageGroup: "20–29", n: 420 },
+                    { ageGroup: "30–39", n: 310 },
+                    { ageGroup: "40–49", n: 215 },
+                    { ageGroup: "50歲以上", n: 120 }
+                ],
+                depression: {
+                    mean: [14.2, 16.8, 12.5, 10.1, 8.4],
+                    sd: [7.8, 8.2, 6.9, 6.1, 5.2],
+                    ci: [[13.08, 15.32], [16.02, 17.58], [11.73, 13.27], [9.28, 10.92], [7.47, 9.33]],
+                    severity: [
+                        { normal: 38.2, mild: 15.1, moderate: 22.2, severe: 14.1, extSevere: 10.4 },
+                        { normal: 28.5, mild: 14.2, moderate: 26.8, severe: 17.3, extSevere: 13.2 },
+                        { normal: 45.2, mild: 16.1, moderate: 20.0, severe: 11.6, extSevere: 7.1 },
+                        { normal: 56.7, mild: 15.8, moderate: 16.3, severe: 7.4,  extSevere: 3.8 },
+                        { normal: 67.5, mild: 14.2, moderate: 11.7, severe: 4.2,  extSevere: 2.4 }
+                    ]
+                },
+                anxiety: {
+                    mean: [13.5, 14.1, 10.8, 8.9, 7.2],
+                    sd: [7.2, 7.6, 6.4, 5.8, 4.9],
+                    ci: [[12.46, 14.54], [13.37, 14.83], [10.09, 11.51], [8.12, 9.68], [6.32, 8.08]],
+                    severity: [
+                        { normal: 32.1, mild: 12.4, moderate: 25.4, severe: 16.2, extSevere: 13.9 },
+                        { normal: 30.2, mild: 11.8, moderate: 27.1, severe: 17.0, extSevere: 13.9 },
+                        { normal: 42.6, mild: 14.5, moderate: 22.3, severe: 12.2, extSevere: 8.4 },
+                        { normal: 53.0, mild: 15.3, moderate: 18.1, severe: 8.4,  extSevere: 5.2 },
+                        { normal: 64.2, mild: 14.1, font: 12, moderate: 12.5, severe: 5.8, extSevere: 3.4 }
+                    ]
+                },
+                stress: {
+                    mean: [18.6, 21.2, 17.4, 14.8, 12.1],
+                    sd: [8.4, 8.9, 7.8, 6.9, 5.9],
+                    ci: [[17.39, 19.81], [20.35, 22.05], [16.53, 18.27], [13.88, 15.72], [11.04, 13.16]],
+                    severity: [
+                        { normal: 42.2, mild: 16.8, moderate: 21.1, severe: 12.4, extSevere: 7.5 },
+                        { normal: 32.4, mild: 15.2, moderate: 24.8, severe: 17.1, extSevere: 10.5 },
+                        { normal: 48.4, mild: 17.1, moderate: 19.4, severe: 10.3, extSevere: 4.8 },
+                        { normal: 58.6, mild: 16.3, moderate: 15.3, severe: 6.5,  extSevere: 3.3 },
+                        { normal: 71.7, mild: 14.1, moderate: 9.2,  severe: 3.3,  extSevere: 1.7 }
+                    ]
+                }
+            },
+            male: {
+                name: "男性子樣本 (n=580)",
+                groups: [
+                    { ageGroup: "10–19", n: 82 },
+                    { ageGroup: "20–29", n: 195 },
+                    { ageGroup: "30–39", n: 145 },
+                    { ageGroup: "40–49", n: 102 },
+                    { ageGroup: "50歲以上", n: 56 }
+                ],
+                depression: {
+                    mean: [13.8, 16.1, 12.1, 10.5, 8.1],
+                    sd: [7.5, 8.0, 6.8, 6.2, 5.0],
+                    ci: [[12.18, 15.42], [14.98, 17.22], [10.99, 13.21], [9.30, 11.70], [6.79, 9.41]],
+                    severity: [
+                        { normal: 40.2, mild: 14.6, moderate: 22.0, severe: 13.4, extSevere: 9.8 },
+                        { normal: 30.8, mild: 14.9, moderate: 26.2, severe: 16.4, extSevere: 11.7 },
+                        { normal: 46.9, mild: 15.9, moderate: 19.3, severe: 11.7, extSevere: 6.2 },
+                        { normal: 54.9, mild: 16.7, moderate: 16.7, severe: 7.8,  extSevere: 3.9 },
+                        { normal: 69.6, mild: 12.5, moderate: 12.5, severe: 3.6,  extSevere: 1.8 }
+                    ]
+                },
+                anxiety: {
+                    mean: [12.6, 13.2, 10.1, 8.4, 6.8],
+                    sd: [6.9, 7.3, 6.2, 5.5, 4.6],
+                    ci: [[11.11, 14.09], [12.17, 14.23], [9.09, 11.11], [7.33, 9.47], [5.60, 8.00]],
+                    severity: [
+                        { normal: 36.6, mild: 12.2, moderate: 25.6, severe: 14.6, extSevere: 11.0 },
+                        { normal: 33.8, mild: 12.3, moderate: 26.7, severe: 15.4, extSevere: 11.8 },
+                        { normal: 45.5, mild: 14.5, moderate: 22.1, severe: 11.0, extSevere: 6.9 },
+                        { normal: 55.9, mild: 15.7, moderate: 16.7, severe: 7.8,  extSevere: 3.9 },
+                        { normal: 67.9, mild: 12.5, moderate: 12.5, severe: 5.4,  extSevere: 1.8 }
+                    ]
+                },
+                stress: {
+                    mean: [17.8, 20.1, 16.8, 14.2, 11.5],
+                    sd: [8.1, 8.6, 7.6, 6.7, 5.6],
+                    ci: [[16.05, 19.55], [18.89, 21.31], [15.56, 18.04], [12.90, 15.50], [10.03, 12.97]],
+                    severity: [
+                        { normal: 45.1, mild: 17.1, moderate: 20.7, severe: 11.0, extSevere: 6.1 },
+                        { normal: 35.4, mild: 15.9, moderate: 24.6, severe: 15.4, extSevere: 8.7 },
+                        { normal: 51.0, mild: 16.6, moderate: 18.6, severe: 9.7,  extSevere: 4.1 },
+                        { normal: 60.8, mild: 16.7, moderate: 14.7, severe: 5.9,  extSevere: 2.0 },
+                        { normal: 75.0, mild: 12.5, moderate: 8.9,  severe: 3.6,  extSevere: 0.0 }
+                    ]
+                }
+            },
+            female: {
+                name: "女性子樣本 (n=670)",
+                groups: [
+                    { ageGroup: "10–19", n: 103 },
+                    { ageGroup: "20–29", n: 225 },
+                    { ageGroup: "30–39", n: 165 },
+                    { ageGroup: "40–49", n: 113 },
+                    { ageGroup: "50歲以上", n: 64 }
+                ],
+                depression: {
+                    mean: [14.5, 17.4, 12.8, 9.8, 8.6],
+                    sd: [8.0, 8.3, 7.0, 6.0, 5.3],
+                    ci: [[12.96, 16.04], [16.31, 18.49], [11.73, 13.87], [8.69, 10.91], [7.30, 9.90]],
+                    severity: [
+                        { normal: 36.9, mild: 15.5, moderate: 22.3, severe: 14.6, extSevere: 10.7 },
+                        { normal: 26.7, mild: 13.8, moderate: 27.1, severe: 18.2, extSevere: 14.2 },
+                        { normal: 43.6, mild: 16.4, moderate: 20.6, severe: 11.5, extSevere: 7.9 },
+                        { normal: 58.4, mild: 15.0, moderate: 15.9, severe: 7.1,  extSevere: 3.5 },
+                        { normal: 65.6, mild: 15.6, moderate: 10.9, severe: 4.7,  extSevere: 3.1 }
+                    ]
+                },
+                anxiety: {
+                    mean: [14.2, 14.9, 11.4, 9.3, 7.5],
+                    sd: [7.4, 7.8, 6.5, 6.0, 5.1],
+                    ci: [[12.77, 15.63], [13.88, 15.92], [10.41, 12.39], [8.20, 10.40], [6.25, 8.75]],
+                    severity: [
+                        { normal: 28.2, mild: 12.6, moderate: 25.2, severe: 17.5, extSevere: 16.5 },
+                        { normal: 27.1, mild: 11.6, moderate: 27.6, severe: 18.2, extSevere: 15.5 },
+                        { normal: 40.0, mild: 14.5, moderate: 22.4, severe: 13.3, extSevere: 9.7 },
+                        { normal: 50.4, mild: 15.0, moderate: 19.5, severe: 8.8,  extSevere: 6.3 },
+                        { normal: 60.9, mild: 15.6, moderate: 12.5, severe: 6.3,  extSevere: 4.7 }
+                    ]
+                },
+                stress: {
+                    mean: [19.2, 22.1, 17.9, 15.3, 12.6],
+                    sd: [8.6, 9.1, 8.0, 7.1, 6.1],
+                    ci: [[17.54, 20.86], [20.91, 23.29], [16.68, 19.12], [13.99, 16.61], [11.10, 14.10]],
+                    severity: [
+                        { normal: 39.8, mild: 16.5, moderate: 21.4, severe: 13.6, extSevere: 8.7 },
+                        { normal: 29.8, mild: 14.7, moderate: 24.9, severe: 18.7, extSevere: 11.9 },
+                        { normal: 46.1, mild: 17.6, moderate: 20.0, severe: 10.9, extSevere: 5.5 },
+                        { normal: 56.6, mild: 15.9, moderate: 15.9, severe: 7.1,  extSevere: 4.4 },
+                        { normal: 68.8, mild: 15.6, moderate: 9.4,  severe: 3.1,  extSevere: 3.1 }
+                    ]
+                }
+            }
+        };
+
+        // 分量表顏色配置
+        const subscaleMeta = {
+            depression: {
+                name: "憂鬱 (Depression)",
+                shortName: "憂鬱",
+                color: "#2563eb", // blue-600
+                bgLight: "rgba(37, 99, 235, 0.1)",
+                borderColor: "#2563eb"
+            },
+            anxiety: {
+                name: "焦慮 (Anxiety)",
+                shortName: "焦慮",
+                color: "#f59e0b", // amber-500
+                bgLight: "rgba(245, 158, 11, 0.1)",
+                borderColor: "#f59e0b"
+            },
+            stress: {
+                name: "壓力 (Stress)",
+                shortName: "壓力",
+                color: "#059669", // emerald-600
+                bgLight: "rgba(5, 150, 105, 0.1)",
+                borderColor: "#059669"
+            }
+        };
+
+        // 嚴重度等級顏色配置 (堆疊長條圖用 - 低飽和度莫蘭迪色系)
+        const severityColors = {
+            normal: { name: "正常 (Normal)", color: "#efe1b6" },      // 柔和淡黃色 (Light Soft Yellow)
+            mild: { name: "輕度 (Mild)", color: "#a8d8ea" },        // 莫蘭迪柔藍 (Muted Soft Blue)
+            moderate: { name: "中度 (Moderate)", color: "#aaabb8" },  // 低飽和莫蘭迪灰藍 (Low-saturation Slate)
+            severe: { name: "重度 (Severe)", color: "#e09f7d" },      // 莫蘭迪柔橘 (Muted Terracotta/Orange)
+            extSevere: { name: "極重度 (Ext. Severe)", color: "#b86b77" } // 低飽和柔暗紅 (Muted Dusty Crimson)
+        };
+
+        // 全局應用狀態 State
+        let currentMode = 'line'; // 'line' 或 'bar'
+        let currentSampleKey = 'all';
+        let chartInstance = null;
+
+        // DOM 元素引用
+        const tabBtnLine = document.getElementById('tabBtnLine');
+        const tabBtnBar = document.getElementById('tabBtnBar');
+        const sampleSelect = document.getElementById('sampleSelect');
+        const checkboxGroup = document.getElementById('checkboxGroup');
+        const radioGroup = document.getElementById('radioGroup');
+        const chartTitle = document.getElementById('chartTitle');
+        const chartSubtitle = document.getElementById('chartSubtitle');
+        const tableBody = document.getElementById('statTableBody');
+        const tableBadge = document.getElementById('tableActiveSubscaleBadge');
+
+        // 初始化與渲染圖表
+        function renderChart() {
+            const dataSet = sampleDatasets[currentSampleKey];
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // 橫軸 X 軸標籤 (包含該組人數)
+            const xLabels = dataSet.groups.map(g => `${g.ageGroup} (n=${g.n})`);
+
+            if (currentMode === 'line') {
+                // 1. 折線圖 (Line Chart with CI Error Bars)
+                const selectedSubscales = Array.from(document.querySelectorAll('.subscale-checkbox:checked')).map(cb => cb.value);
+
+                const chartDatasets = selectedSubscales.map(key => {
+                    const subData = dataSet[key];
+                    const meta = subscaleMeta[key];
+
+                    // 構建 95% CI 誤差線資料對象
+                    const errorBars = subData.ci.map(ci => ({ min: ci[0], max: ci[1] }));
+
+                    return {
+                        label: meta.name,
+                        data: subData.mean,
+                        borderColor: meta.color,
+                        backgroundColor: meta.color,
+                        borderWidth: 2.5,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        tension: 0.2,
+                        errorBars: errorBars,
+                        sdData: subData.sd,
+                        ciData: subData.ci
+                    };
+                });
+
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: xLabels,
+                        datasets: chartDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'nearest',
+                            intersect: false
+                        },
+                        scales: {
+                            y: {
+                                min: 0,
+                                max: 42,
+                                title: {
+                                    display: true,
+                                    text: '分量表總分 (0 - 42 分)',
+                                    font: { size: 12, weight: 'bold' }
+                                },
+                                grid: { color: 'rgba(226, 232, 240, 0.7)' }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '年齡組別 (人數 n)',
+                                    font: { size: 12, weight: 'bold' }
+                                },
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { font: { family: 'Inter', size: 13, weight: '500' } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                padding: 12,
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 13 },
+                                callbacks: {
+                                    label: function(context) {
+                                        const dataset = context.dataset;
+                                        const idx = context.dataIndex;
+                                        const meanVal = context.parsed.y.toFixed(1);
+                                        const sdVal = dataset.sdData[idx].toFixed(1);
+                                        const ciLow = dataset.ciData[idx][0].toFixed(2);
+                                        const ciHigh = dataset.ciData[idx][1].toFixed(2);
+                                        return [
+                                            ` ${dataset.label}:`,
+                                            `   • 平均數 (Mean): ${meanVal}`,
+                                            `   • 標準差 (SD): ${sdVal}`,
+                                            `   • 95% 信賴區間: [${ciLow}, ${ciHigh}]`
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } else {
+                // 2. 橫向堆疊百分比長條圖 (Horizontal Stacked Bar Chart)
+                const selectedSubscaleKey = document.querySelector('input[name="subscaleRadio"]:checked').value;
+                const subData = dataSet[selectedSubscaleKey];
+
+                const levels = [
+                    { key: 'normal', name: '正常 (Normal)', color: severityColors.normal.color },
+                    { key: 'mild', name: '輕度 (Mild)', color: severityColors.mild.color },
+                    { key: 'moderate', name: '中度 (Moderate)', color: severityColors.moderate.color },
+                    { key: 'severe', name: '重度 (Severe)', color: severityColors.severe.color },
+                    { key: 'extSevere', name: '極重度 (Ext. Severe)', color: severityColors.extSevere.color }
+                ];
+
+                const stackedDatasets = levels.map(level => {
+                    return {
+                        label: level.name,
+                        data: subData.severity.map(s => s[level.key]),
+                        backgroundColor: level.color,
+                        borderWidth: 0,
+                        barThickness: 24
+                    };
+                });
+
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: xLabels,
+                        datasets: stackedDatasets
+                    },
+                    options: {
+                        indexAxis: 'y', // 橫向長條圖
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                stacked: true,
+                                min: 0,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: '百分比 (%)',
+                                    font: { size: 12, weight: 'bold' }
+                                },
+                                ticks: { callback: v => v + '%' },
+                                grid: { color: 'rgba(226, 232, 240, 0.7)' }
+                            },
+                            y: {
+                                stacked: true,
+                                title: {
+                                    display: true,
+                                    text: '年齡組別',
+                                    font: { size: 12, weight: 'bold' }
+                                },
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { font: { family: 'Inter', size: 12, weight: '500' } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                padding: 12,
+                                callbacks: {
+                                    title: function(items) {
+                                        return `${subscaleMeta[selectedSubscaleKey].shortName}量表 - 年齡組：${items[0].label}`;
+                                    },
+                                    label: function(context) {
+                                        const pct = context.parsed.x.toFixed(1);
+                                        const ageGroupObj = dataSet.groups[context.dataIndex];
+                                        const count = Math.round(ageGroupObj.n * (pct / 100));
+                                        return ` ${context.dataset.label}: ${pct}% (約 ${count} 人)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 同步更新數據表格
+            updateTableData();
+        }
+
+        // 更新統計數據表格
+        function updateTableData() {
+            const dataSet = sampleDatasets[currentSampleKey];
+            tableBody.innerHTML = '';
+
+            let targetSubscales = [];
+            if (currentMode === 'line') {
+                targetSubscales = Array.from(document.querySelectorAll('.subscale-checkbox:checked')).map(cb => cb.value);
+                tableBadge.innerText = `目前顯示分量表：${targetSubscales.map(k => subscaleMeta[k].shortName).join('、')}`;
+            } else {
+                const checkedRadio = document.querySelector('input[name="subscaleRadio"]:checked').value;
+                targetSubscales = [checkedRadio];
+                tableBadge.innerText = `目前顯示分量表：${subscaleMeta[checkedRadio].shortName}`;
+            }
+
+            // 遍歷各年齡組與目標分量表產生表格列
+            dataSet.groups.forEach((group, gIdx) => {
+                targetSubscales.forEach((subKey, sIdx) => {
+                    const subData = dataSet[subKey];
+                    const meta = subscaleMeta[subKey];
+                    const sev = subData.severity[gIdx];
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50/80 transition-colors border-b border-slate-100";
+
+                    // 若為組內第一筆資料，合併顯示年齡組與人數
+                    const ageTd = sIdx === 0 ? 
+                        `<td class="py-3 px-4 font-semibold text-slate-800" rowspan="${targetSubscales.length}">${group.ageGroup}</td>
+                         <td class="py-3 px-4 text-center font-medium text-slate-600" rowspan="${targetSubscales.length}">${group.n}</td>` 
+                        : '';
+
+                    tr.innerHTML = `
+                        ${ageTd}
+                        <td class="py-3 px-4 font-medium flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${meta.color}"></span>
+                            <span>${meta.shortName}</span>
+                        </td>
+                        <td class="py-3 px-4 text-center font-semibold text-slate-900">${subData.mean[gIdx].toFixed(1)}</td>
+                        <td class="py-3 px-4 text-center text-slate-600">${subData.sd[gIdx].toFixed(1)}</td>
+                        <td class="py-3 px-4 text-center text-slate-500 font-mono text-xs">[${subData.ci[gIdx][0].toFixed(1)}, ${subData.ci[gIdx][1].toFixed(1)}]</td>
+                        <td class="py-3 px-4 text-center text-slate-700">${sev.normal.toFixed(1)}%</td>
+                        <td class="py-3 px-4 text-center text-emerald-700 bg-emerald-50/30">${sev.mild.toFixed(1)}%</td>
+                        <td class="py-3 px-4 text-center text-amber-700 bg-amber-50/30">${sev.moderate.toFixed(1)}%</td>
+                        <td class="py-3 px-4 text-center text-orange-700 bg-orange-50/30">${sev.severe.toFixed(1)}%</td>
+                        <td class="py-3 px-4 text-center text-rose-700 font-semibold bg-rose-50/40">${sev.extSevere.toFixed(1)}%</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            });
+        }
+
+        // 事件監聽器設定
+        function setupEventListeners() {
+            // 切換至折線圖
+            tabBtnLine.addEventListener('click', () => {
+                if (currentMode === 'line') return;
+                currentMode = 'line';
+                tabBtnLine.classList.add('active');
+                tabBtnBar.classList.remove('active');
+
+                // UI 控制切換
+                checkboxGroup.classList.remove('hidden');
+                radioGroup.classList.add('hidden');
+                chartTitle.innerHTML = `<i class="fa-solid fa-chart-line text-blue-600"></i><span>各年齡組平均分數與 95% 信賴區間 (CI)</span>`;
+                chartSubtitle.innerText = '縱軸得分範圍固定為 0–42 分；誤差線代表 95% 信賴區間估計值。';
+
+                renderChart();
+            });
+
+            // 切換至堆疊長條圖
+            tabBtnBar.addEventListener('click', () => {
+                if (currentMode === 'bar') return;
+                currentMode = 'bar';
+                tabBtnBar.classList.add('active');
+                tabBtnLine.classList.remove('active');
+
+                // UI 控制切換
+                checkboxGroup.classList.add('hidden');
+                radioGroup.classList.remove('hidden');
+                chartTitle.innerHTML = `<i class="fa-solid fa-chart-bar text-purple-600"></i><span>各年齡層嚴重度等級分布百分比</span>`;
+                chartSubtitle.innerText = '橫向堆疊長條圖顯示正常、輕度、中度、重度至極重度之百分比結構 (0–100%)。';
+
+                renderChart();
+            });
+
+            // 樣本群組下拉選單變更
+            sampleSelect.addEventListener('change', (e) => {
+                currentSampleKey = e.target.value;
+                renderChart();
+            });
+
+            // 折線圖 Checkbox 觸發 (含至少保留一個的防呆邏輯)
+            const checkboxes = document.querySelectorAll('.subscale-checkbox');
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const checkedCount = document.querySelectorAll('.subscale-checkbox:checked').length;
+                    if (checkedCount === 0) {
+                        e.target.checked = true; // 強制保持勾選
+                        return;
+                    }
+                    if (currentMode === 'line') {
+                        renderChart();
+                    }
+                });
+            });
+
+            // 堆疊圖 Radio 觸發
+            const radios = document.querySelectorAll('input[name="subscaleRadio"]');
+            radios.forEach(r => {
+                r.addEventListener('change', () => {
+                    if (currentMode === 'bar') {
+                        renderChart();
+                    }
+                });
+            });
+        }
+
+        // 頁面載入完成時初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            renderChart();
+        });
+    </script>
+</body>
+</html>
